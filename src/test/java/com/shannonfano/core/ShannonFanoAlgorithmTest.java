@@ -43,6 +43,44 @@ class ShannonFanoAlgorithmTest {
     }
 
     /**
+     * Проверяет полный цикл для текстового файла с паролем
+     */
+    @Test
+    void testEncodeDecodeTextFileWithPassword() throws Exception {
+        Path inputFile = tempDir.resolve("input.txt");
+        try (BufferedWriter writer = new BufferedWriter(
+                new OutputStreamWriter(new FileOutputStream(inputFile.toFile()), StandardCharsets.UTF_8))) {
+            writer.write("text");
+        }
+        Path archive = tempDir.resolve("archive.sf");
+        Path outputDir = tempDir.resolve("output");
+        String password = "12345";
+        algorithm.encode(inputFile.toString(), archive.toString(), password);
+        algorithm.decode(archive.toString(), outputDir.toString(), password);
+        Path decodedFile = outputDir.resolve("input.txt");
+        assertTrue(decodedFile.toFile().exists());
+        String content = readTextFile(decodedFile.toString());
+        assertEquals("text", content);
+    }
+
+    /**
+     * Проверяет, что без пароля архив не открывается
+     */
+    @Test
+    void testDecodeWithWrongPassword() throws Exception {
+        Path inputFile = tempDir.resolve("input.txt");
+        try (BufferedWriter writer = new BufferedWriter(
+                new OutputStreamWriter(new FileOutputStream(inputFile.toFile()), StandardCharsets.UTF_8))) {
+            writer.write("text");
+        }
+        Path archive = tempDir.resolve("archive.sf");
+        Path outputDir = tempDir.resolve("output");
+        algorithm.encode(inputFile.toString(), archive.toString(), "12345");
+        assertThrows(InvalidArchiveException.class,
+                () -> algorithm.decode(archive.toString(), outputDir.toString(), "wrong"));
+    }
+
+    /**
      * Проверяет полный цикл для бинарного файла
      */
     @Test

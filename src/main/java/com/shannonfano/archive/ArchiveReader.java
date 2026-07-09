@@ -29,6 +29,19 @@ public class ArchiveReader {
     public void readArchive(String inputPath, String outputDir) throws IOException,
             InvalidArchiveException,
             CorruptArchiveException {
+        readArchive(inputPath, outputDir, null);
+    }
+
+    /**
+     * Читает архив и восстанавливает файл в указанную директорию с паролем
+     *
+     * @param inputPath Путь к архиву
+     * @param outputDir Директория для восстановления файла
+     * @param password Пароль для архива
+     */
+    public void readArchive(String inputPath, String outputDir, String password) throws IOException,
+            InvalidArchiveException,
+            CorruptArchiveException {
         File outputDirFile = new File(outputDir);
         if (!outputDirFile.exists()) {
             outputDirFile.mkdirs();
@@ -39,6 +52,19 @@ public class ArchiveReader {
             in.readFully(signature);
             if (!Arrays.equals(signature, ArchiveMetadata.SIGNATURE)) {
                 throw new InvalidArchiveException("Неверный формат файла или версия архива");
+            }
+            byte[] passwordMarker = new byte[4];
+            in.readFully(passwordMarker);
+            if (Arrays.equals(passwordMarker, ArchiveMetadata.PASSWORD)) {
+                String storedHash = in.readUTF();
+                if (password == null || password.isEmpty()) {
+                    throw new InvalidArchiveException("Архив защищен паролем");
+                }
+                if (!hashService.calculateHash(password).equals(storedHash)) {
+                    throw new InvalidArchiveException("Неверный пароль");
+                }
+            } else if (!Arrays.equals(passwordMarker, ArchiveMetadata.NO_PASSWORD)) {
+                throw new InvalidArchiveException("Поврежденный архив");
             }
             int numItems = in.readInt();
             for (int i = 0; i < numItems; i++) {

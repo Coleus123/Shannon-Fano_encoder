@@ -19,34 +19,38 @@ public class ArchiveWriter {
     private final FileTypeDetector typeDetector = new FileTypeDetector();
 
     /**
-     * Записывает файл в архив
+     * Записывает файл в архив с паролем
      *
      * @param filePath Путь к исходному файлу
      * @param outputPath Путь к выходному архиву
      * @param encodingTable Таблица кодирования Шеннона-Фано
+     * @param password Пароль для защиты архива
      */
     public void writeFile(String filePath, String outputPath,
-                          Map<Object, String> encodingTable) throws IOException {
+                          Map<Object, String> encodingTable, String password) throws IOException {
         try (DataOutputStream out = new DataOutputStream(
                 new BufferedOutputStream(new FileOutputStream(outputPath)))) {
             out.write(ArchiveMetadata.SIGNATURE);
+            writePassword(out, password);
             out.writeInt(1);
             writeSingleFile(filePath, out, encodingTable);
         }
     }
 
     /**
-     * Записывает коллекцию файлов и директорий в архив
+     * Записывает коллекцию файлов и директорий в архив с паролем
      *
      * @param inputPaths Список путей
      * @param outputPath Путь к выходному архиву
      * @param encodingTable Таблица кодирования
+     * @param password Пароль для защиты архива
      */
     public void writeArchive(List<String> inputPaths, String outputPath,
-                             Map<Object, String> encodingTable) throws IOException {
+                             Map<Object, String> encodingTable, String password) throws IOException {
         try (DataOutputStream out = new DataOutputStream(
                 new BufferedOutputStream(new FileOutputStream(outputPath)))) {
             out.write(ArchiveMetadata.SIGNATURE);
+            writePassword(out, password);
             out.writeInt(inputPaths.size());
             for (String path : inputPaths) {
                 File file = new File(path);
@@ -60,6 +64,21 @@ public class ArchiveWriter {
     }
 
     /**
+     * Записывает маркер пароля в архив
+     *
+     * @param out Поток для записи
+     * @param password Пароль
+     */
+    private void writePassword(DataOutputStream out, String password) throws IOException {
+        if (password != null && !password.isEmpty()) {
+            out.write(ArchiveMetadata.PASSWORD);
+            out.writeUTF(hashService.calculateHash(password));
+        } else {
+            out.write(ArchiveMetadata.NO_PASSWORD);
+        }
+    }
+
+    /**
      * Записывает один файл в архив
      *
      * @param filePath Путь к файлу
@@ -69,12 +88,11 @@ public class ArchiveWriter {
     private void writeSingleFile(String filePath, DataOutputStream out,
                                  Map<Object, String> encodingTable) throws IOException {
         boolean isText = typeDetector.isTextFile(filePath);
-
+        out.write(ArchiveMetadata.FILE);
+        out.writeUTF(new File(filePath).getName());
         if (isText) {
             TextFileHandler handler = new TextFileHandler();
             String content = handler.read(filePath);
-            out.write(ArchiveMetadata.FILE);
-            out.writeUTF(new File(filePath).getName());
             out.write(ArchiveMetadata.TEXT);
             out.writeUTF(hashService.calculateHash(content));
             writeEncodingTable(out, encodingTable);
@@ -82,8 +100,6 @@ public class ArchiveWriter {
         } else {
             BinaryFileHandler handler = new BinaryFileHandler();
             byte[] content = handler.read(filePath);
-            out.write(ArchiveMetadata.FILE);
-            out.writeUTF(new File(filePath).getName());
             out.write(ArchiveMetadata.BINARY);
             out.writeUTF(hashService.calculateHash(content));
             writeEncodingTable(out, encodingTable);

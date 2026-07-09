@@ -57,8 +57,9 @@ public class Main {
         }
         List<String> inputPaths = Arrays.asList(args[1].split(","));
         String outputPath = args[2];
+        String password = args.length > 3 ? args[3] : null;
         System.out.printf("Кодирование: %s -> %s", inputPaths, outputPath);
-        algorithm.encode(inputPaths, outputPath);
+        algorithm.encode(inputPaths, outputPath, password);
         System.out.println("Кодирование завершено успешно");
     }
 
@@ -76,8 +77,9 @@ public class Main {
         }
         String inputPath = args[1];
         String outputDir = args[2];
+        String password = args.length > 3 ? args[3] : null;
         System.out.printf("Декодирование архива: %s -> %s", inputPath, outputDir);
-        algorithm.decode(inputPath, outputDir);
+        algorithm.decode(inputPath, outputDir, password);
         System.out.println("Декодирование завершено успешно");
     }
 
@@ -88,12 +90,14 @@ public class Main {
         System.out.println("Shannon-Fano Кодировщик/Декодировщик");
         System.out.println();
         System.out.println("Использование:");
-        System.out.println("  encode <input1,input2,...> <output_archive>");
-        System.out.println("  decode <input_archive> <output_dir>");
+        System.out.println("  encode <input1,input2,...> <output_archive> [password]");
+        System.out.println("  decode <input_archive> <output_dir> [password]");
         System.out.println();
         System.out.println("Примеры:");
         System.out.println("  encode file.txt archive.sf");
+        System.out.println("  encode file.txt archive.sf mypassword");
         System.out.println("  encode dir1,dir2 archive.sf");
         System.out.println("  decode archive.sf output_dir");
+        System.out.println("  decode archive.sf output_dir mypassword");
     }
 }

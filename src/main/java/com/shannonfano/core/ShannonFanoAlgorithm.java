@@ -29,6 +29,17 @@ public class ShannonFanoAlgorithm {
      * @param outputPath Путь к выходному архиву
      */
     public void encode(String inputPath, String outputPath) throws IOException {
+        encode(inputPath, outputPath, null);
+    }
+
+    /**
+     * Кодирует файл в архив с паролем
+     *
+     * @param inputPath Путь к исходному файлу
+     * @param outputPath Путь к выходному архиву
+     * @param password Пароль для защиты архива
+     */
+    public void encode(String inputPath, String outputPath, String password) throws IOException {
         if (inputPath == null || inputPath.trim().isEmpty()) {
             throw new IllegalArgumentException("Не указан файл для кодирования");
         }
@@ -43,7 +54,7 @@ public class ShannonFanoAlgorithm {
         frequencyAnalyzer.analyzeFile(inputPath);
         codeTableBuilder.buildTables(frequencyAnalyzer.getCharacterFrequency());
         Map<Object, String> encodingTable = codeTableBuilder.getEncodingTable();
-        archiveWriter.writeFile(inputPath, outputPath, encodingTable);
+        archiveWriter.writeFile(inputPath, outputPath, encodingTable, password);
     }
 
     /**
@@ -53,6 +64,17 @@ public class ShannonFanoAlgorithm {
      * @param outputPath Путь к выходному архиву
      */
     public void encode(List<String> inputPaths, String outputPath) throws IOException {
+        encode(inputPaths, outputPath, null);
+    }
+
+    /**
+     * Кодирует коллекцию файлов и директорий в архив с паролем
+     *
+     * @param inputPaths Список путей к файлам/директориям
+     * @param outputPath Путь к выходному архиву
+     * @param password Пароль для защиты архива
+     */
+    public void encode(List<String> inputPaths, String outputPath, String password) throws IOException {
         if (inputPaths == null || inputPaths.isEmpty()) {
             throw new IllegalArgumentException("Не указаны файлы/каталоги для кодирования");
         }
@@ -72,7 +94,7 @@ public class ShannonFanoAlgorithm {
         }
         codeTableBuilder.buildTables(frequencyAnalyzer.getCharacterFrequency());
         Map<Object, String> encodingTable = codeTableBuilder.getEncodingTable();
-        archiveWriter.writeArchive(inputPaths, outputPath, encodingTable);
+        archiveWriter.writeArchive(inputPaths, outputPath, encodingTable, password);
     }
 
     /**
@@ -84,6 +106,19 @@ public class ShannonFanoAlgorithm {
     public void decode(String inputPath, String outputDir) throws IOException,
             InvalidArchiveException,
             CorruptArchiveException {
+        decode(inputPath, outputDir, null);
+    }
+
+    /**
+     * Декодирует архив и восстанавливает файл с паролем
+     *
+     * @param inputPath Путь к архиву
+     * @param outputDir Директория для восстановления файла
+     * @param password Пароль для архива
+     */
+    public void decode(String inputPath, String outputDir, String password) throws IOException,
+            InvalidArchiveException,
+            CorruptArchiveException {
         if (inputPath == null || inputPath.trim().isEmpty()) {
             throw new IllegalArgumentException("Не указан архив для декодирования");
         }
@@ -91,6 +126,6 @@ public class ShannonFanoAlgorithm {
         if (!inputFile.exists()) {
             throw new FileNotFoundException("Архив не найден: " + inputPath);
         }
-        archiveReader.readArchive(inputPath, outputDir);
+        archiveReader.readArchive(inputPath, outputDir, password);
     }
 }
