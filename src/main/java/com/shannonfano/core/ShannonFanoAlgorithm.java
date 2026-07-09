@@ -8,6 +8,7 @@ import com.shannonfano.exception.InvalidArchiveException;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -43,6 +44,35 @@ public class ShannonFanoAlgorithm {
         codeTableBuilder.buildTables(frequencyAnalyzer.getCharacterFrequency());
         Map<Object, String> encodingTable = codeTableBuilder.getEncodingTable();
         archiveWriter.writeFile(inputPath, outputPath, encodingTable);
+    }
+
+    /**
+     * Кодирует коллекцию файлов и директорий в архив
+     *
+     * @param inputPaths Список путей к файлам/директориям
+     * @param outputPath Путь к выходному архиву
+     */
+    public void encode(List<String> inputPaths, String outputPath) throws IOException {
+        if (inputPaths == null || inputPaths.isEmpty()) {
+            throw new IllegalArgumentException("Не указаны файлы/каталоги для кодирования");
+        }
+        for (String path : inputPaths) {
+            if (!new File(path).exists()) {
+                throw new FileNotFoundException("Путь не существует: " + path);
+            }
+        }
+        frequencyAnalyzer.clear();
+        for (String path : inputPaths) {
+            File file = new File(path);
+            if (file.isFile()) {
+                frequencyAnalyzer.analyzeFile(path);
+            } else if (file.isDirectory()) {
+                frequencyAnalyzer.analyzeDirectory(path);
+            }
+        }
+        codeTableBuilder.buildTables(frequencyAnalyzer.getCharacterFrequency());
+        Map<Object, String> encodingTable = codeTableBuilder.getEncodingTable();
+        archiveWriter.writeArchive(inputPaths, outputPath, encodingTable);
     }
 
     /**

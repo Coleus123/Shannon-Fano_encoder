@@ -7,7 +7,7 @@ import com.shannonfano.file.BinaryFileHandler;
 import com.shannonfano.hash.HashService;
 
 import java.io.*;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Записывает файл в архив в формате Shannon-Fano
@@ -32,6 +32,30 @@ public class ArchiveWriter {
             out.write(ArchiveMetadata.SIGNATURE);
             out.writeInt(1);
             writeSingleFile(filePath, out, encodingTable);
+        }
+    }
+
+    /**
+     * Записывает коллекцию файлов и директорий в архив
+     *
+     * @param inputPaths Список путей
+     * @param outputPath Путь к выходному архиву
+     * @param encodingTable Таблица кодирования
+     */
+    public void writeArchive(List<String> inputPaths, String outputPath,
+                             Map<Object, String> encodingTable) throws IOException {
+        try (DataOutputStream out = new DataOutputStream(
+                new BufferedOutputStream(new FileOutputStream(outputPath)))) {
+            out.write(ArchiveMetadata.SIGNATURE);
+            out.writeInt(inputPaths.size());
+            for (String path : inputPaths) {
+                File file = new File(path);
+                if (file.isFile()) {
+                    writeSingleFile(path, out, encodingTable);
+                } else if (file.isDirectory()) {
+                    writeDirectory(path, out, encodingTable);
+                }
+            }
         }
     }
 
@@ -65,6 +89,90 @@ public class ArchiveWriter {
             writeEncodingTable(out, encodingTable);
             writeEncodedContent(content, out, encodingTable);
         }
+    }
+
+    /**
+     * Записывает директорию в архив
+     *
+     * @param dirPath Путь к директории
+     * @param out Поток для записи
+     * @param encodingTable Таблица кодирования
+     */
+    private void writeDirectory(String dirPath, DataOutputStream out,
+                                Map<Object, String> encodingTable) throws IOException {
+        out.write(ArchiveMetadata.CATALOG);
+        out.writeUTF(new File(dirPath).getName());
+        writeEncodingTable(out, encodingTable);
+        List<String> subdirs = new ArrayList<>();
+        List<FileEntry> binaryFiles = new ArrayList<>();
+        List<FileEntry> textFiles = new ArrayList<>();
+        collectDirectoryItems(dirPath, dirPath, subdirs, binaryFiles, textFiles);
+        out.writeInt(subdirs.size());
+        for (String relPath : subdirs) {
+            out.writeUTF(relPath);
+        }
+        out.writeInt(binaryFiles.size());
+        for (FileEntry entry : binaryFiles) {
+            out.writeUTF(entry.relativePath);
+            byte[] content = new BinaryFileHandler().read(entry.absolutePath);
+            out.writeUTF(hashService.calculateHash(content));
+            writeEncodedContent(content, out, encodingTable);
+        }
+        out.writeInt(textFiles.size());
+        for (FileEntry entry : textFiles) {
+            out.writeUTF(entry.relativePath);
+            String content = new TextFileHandler().read(entry.absolutePath);
+            out.writeUTF(hashService.calculateHash(content));
+            writeEncodedContent(content, out, encodingTable);
+        }
+    }
+
+    /**
+     * Рекурсивно собирает элементы директории
+     *
+     * @param baseDir Базовая директория
+     * @param currentDir Текущая директория
+     * @param subdirs Список поддиректорий
+     * @param binaryFiles Список бинарных файлов
+     * @param textFiles Список текстовых файлов
+     */
+    private void collectDirectoryItems(String baseDir, String currentDir,
+                                       List<String> subdirs,
+                                       List<FileEntry> binaryFiles,
+                                       List<FileEntry> textFiles) {
+        File dir = new File(currentDir);
+        File[] files = dir.listFiles();
+        if (files == null) return;
+
+        for (File file : files) {
+            String relPath = getRelativePath(baseDir, file.getAbsolutePath());
+            if (file.isDirectory()) {
+                subdirs.add(relPath);
+                collectDirectoryItems(baseDir, file.getAbsolutePath(), subdirs, binaryFiles, textFiles);
+            } else if (file.isFile()) {
+                if (typeDetector.isTextFile(file.getAbsolutePath())) {
+                    textFiles.add(new FileEntry(relPath, file.getAbsolutePath()));
+                } else {
+                    binaryFiles.add(new FileEntry(relPath, file.getAbsolutePath()));
+                }
+            }
+        }
+    }
+
+    /**
+     * Вычисляет относительный путь
+     *
+     * @param baseDir Базовая директория
+     * @param absolutePath Абсолютный путь
+     * @return Относительный путь
+     */
+    private String getRelativePath(String baseDir, String absolutePath) {
+        String base = baseDir.replace('\\', '/');
+        String abs = absolutePath.replace('\\', '/');
+        if (abs.startsWith(base)) {
+            return abs.substring(base.length() + 1);
+        }
+        return abs;
     }
 
     /**
@@ -123,17 +231,27 @@ public class ArchiveWriter {
         int bitCount = bitString.length();
         out.writeInt(bitCount);
         out.writeUTF(hashService.calculateHash(bitString));
-
         if (bitCount == 0) {
             return;
         }
-
         int padding = (8 - (bitCount % 8)) % 8;
         String paddedBitString = bitString + "0".repeat(padding);
         for (int i = 0; i < paddedBitString.length(); i += 8) {
             String byteStr = paddedBitString.substring(i, Math.min(i + 8, paddedBitString.length()));
             int byteVal = Integer.parseInt(byteStr, 2);
             out.writeByte(byteVal);
+        }
+    }
+
+    /**
+     * Вспомогательный класс для хранения информации о файле
+     */
+    private static class FileEntry {
+        final String relativePath;
+        final String absolutePath;
+        FileEntry(String relativePath, String absolutePath) {
+            this.relativePath = relativePath;
+            this.absolutePath = absolutePath;
         }
     }
 }

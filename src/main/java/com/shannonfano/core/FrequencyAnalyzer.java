@@ -5,6 +5,7 @@ import com.shannonfano.file.FileTypeDetector;
 import com.shannonfano.file.TextFileHandler;
 import com.shannonfano.file.BinaryFileHandler;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -36,6 +37,25 @@ public class FrequencyAnalyzer {
             for (byte b : (byte[]) content) {
                 characterFrequency.merge(b, 1, Integer::sum);
                 totalCharacters++;
+            }
+        }
+    }
+
+    /**
+     * Рекурсивно анализирует директорию для сбора статистики частот
+     *
+     * @param dirPath Путь к директории
+     */
+    public void analyzeDirectory(String dirPath) throws IOException {
+        File dir = new File(dirPath);
+        File[] files = dir.listFiles();
+        if (files != null) {
+            for (File file : files) {
+                if (file.isFile()) {
+                    analyzeFile(file.getAbsolutePath());
+                } else if (file.isDirectory()) {
+                    analyzeDirectory(file.getAbsolutePath());
+                }
             }
         }
     }
